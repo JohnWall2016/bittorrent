@@ -5,6 +5,8 @@ VisualStudioVersion = 15.0.26124.0
 MinimumVisualStudioVersion = 15.0.26124.0
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BitTorrent", "BitTorrent\BitTorrent.csproj", "{BE4BD81F-6651-41F8-954C-3D95568EBA28}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BitTorrentTest", "BitTorrentTest\BitTorrentTest.csproj", "{D9BF2B7E-F965-485D-AF66-24F4BF66842E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -30,5 +32,17 @@ Global
 		{BE4BD81F-6651-41F8-954C-3D95568EBA28}.Release|x64.Build.0 = Release|Any CPU
 		{BE4BD81F-6651-41F8-954C-3D95568EBA28}.Release|x86.ActiveCfg = Release|Any CPU
 		{BE4BD81F-6651-41F8-954C-3D95568EBA28}.Release|x86.Build.0 = Release|Any CPU
+		{D9BF2B7E-F965-485D-AF66-24F4BF66842E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D9BF2B7E-F965-485D-AF66-24F4BF66842E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D9BF2B7E-F965-485D-AF66-24F4BF66842E}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{D9BF2B7E-F965-485D-AF66-24F4BF66842E}.Debug|x64.Build.0 = Debug|Any CPU
+		{D9BF2B7E-F965-485D-AF66-24F4BF66842E}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{D9BF2B7E-F965-485D-AF66-24F4BF66842E}.Debug|x86.Build.0 = Debug|Any CPU
+		{D9BF2B7E-F965-485D-AF66-24F4BF66842E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D9BF2B7E-F965-485D-AF66-24F4BF66842E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D9BF2B7E-F965-485D-AF66-24F4BF66842E}.Release|x64.ActiveCfg = Release|Any CPU
+		{D9BF2B7E-F965-485D-AF66-24F4BF66842E}.Release|x64.Build.0 = Release|Any CPU
+		{D9BF2B7E-F965-485D-AF66-24F4BF66842E}.Release|x86.ActiveCfg = Release|Any CPU
+		{D9BF2B7E-F965-485D-AF66-24F4BF66842E}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
