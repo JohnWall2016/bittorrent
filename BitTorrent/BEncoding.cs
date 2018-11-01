@@ -13,6 +13,9 @@ namespace BitTorrent.BEncoding
         public static byte[] ToBytes(this int i, string encodeName = _encodeName)
         => Encoding.GetEncoding(encodeName).GetBytes(i.ToString());
 
+        public static byte[] ToBytes(this long i, string encodeName = _encodeName)
+        => Encoding.GetEncoding(encodeName).GetBytes(i.ToString());
+
         public static byte[] ToBytes(this string str, string encodeName = _encodeName)
         => Encoding.GetEncoding(encodeName).GetBytes(str);
 
@@ -32,23 +35,29 @@ namespace BitTorrent.BEncoding
         }
     }
 
-    public abstract class Element
+    public interface IDumpable
     {
-        public abstract byte[] Dump();
+        byte[] Dump();
     }
 
-    public class String : Element
+    public class String : IDumpable
     {
         byte[] _data = null;
 
         public String(IEnumerable<byte> src, int count)
-        {
-            _data = Bytes.Copy(src, count);
-        }
+        => _data = Bytes.Copy(src, count);
 
-        public override byte[] Dump()
-        {
-            return Bytes.Join(_data.Length.ToBytes(), ":".ToBytes(), _data);
-        }
+        public byte[] Dump()
+        => Bytes.Join(_data.Length.ToBytes(), ":".ToBytes(), _data);
+    }
+
+    public class Number : IDumpable
+    {
+        long _number;
+
+        public Number(string number) => _number = long.Parse(number);
+
+        public byte[] Dump()
+        => Bytes.Join("i".ToBytes(), _number.ToBytes(), "e".ToBytes());
     }
 }
