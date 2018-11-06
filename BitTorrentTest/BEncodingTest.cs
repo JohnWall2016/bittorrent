@@ -12,12 +12,18 @@ namespace BitTorrentTest
         public BEncodingTest(ITestOutputHelper output) => this.output = output;
 
         [Fact]
-        public void Test1()
+        public void TestBytes()
         {
             var bytes = 12345.ToBytes();
             output.WriteLine("{0}:[{1}]", bytes.Length, bytes.Dump());
             bytes = "i".ToBytes();
             output.WriteLine("{0}:[{1}]", bytes.Length, bytes.Dump());
+        }
+
+        [Fact]
+        public void TestTorrentFile()
+        {
+            output.WriteLine(new TorrentFile(@"..\..\..\manti.torrent").ToString());
         }
     }
 }
