@@ -46,18 +46,18 @@ namespace BitTorrent.BEncoding
         }
     }
 
-    public interface IDumpable
+    public interface IEncodable
     {
-        byte[] Dump();
+        byte[] Encode();
     }
 
-    public class String : IDumpable
+    public class String : IEncodable
     {
         MemoryStream _data;
 
         String(MemoryStream data) => _data = data;
 
-        public byte[] Dump()
+        public byte[] Encode()
         => Bytes.Join(_data.Length.ToBytes(), ":".ToBytes(), _data.ToArray());
 
         public string ToString(string encodeName = Bytes.EncodeName, int length = -1)
@@ -75,8 +75,11 @@ namespace BitTorrent.BEncoding
             }
         }
 
-        public static String Parse(IEnumerator<byte> bytes)
+        public static String Decode(IEnumerator<byte> bytes, bool moveNext = true)
         {
+            if (moveNext && !bytes.MoveNext())
+                throw new FormatException("A empty String structure");
+
             var slen = new MemoryStream();
             while (bytes.Current >= 0x30 && bytes.Current <= 0x39) // 0-9
             {
@@ -107,7 +110,7 @@ namespace BitTorrent.BEncoding
         public override string ToString() => $"\"{ToString(length: 150)}\"";
     }
 
-    public class Number : IDumpable
+    public class Number : IEncodable
     {
         public static readonly byte beginToken = "i".ToBytes()[0];
         public static readonly byte endToken = "e".ToBytes()[0];
@@ -116,14 +119,17 @@ namespace BitTorrent.BEncoding
 
         Number(MemoryStream data) => _data = data;
 
-        public byte[] Dump()
+        public byte[] Encode()
         => Bytes.Join(new byte[]{beginToken}, _data.ToArray(), new byte[]{endToken});
 
         public long ToLong()
         => long.Parse(Encoding.ASCII.GetString(_data.GetBuffer(), 0, (int)_data.Length));
 
-        public static Number Parse(IEnumerator<byte> bytes)
+        public static Number Decode(IEnumerator<byte> bytes, bool moveNext = true)
         {
+            if (moveNext && !bytes.MoveNext())
+                throw new FormatException("A empty structure");
+
             if (bytes.Current != beginToken)
             {    
                 throw new FormatException("Number beginToken is not found");
@@ -147,23 +153,23 @@ namespace BitTorrent.BEncoding
         public override string ToString() => $"{ToLong()}";
     }
 
-    public class List : IDumpable
+    public class List : IEncodable
     {
         public static readonly byte beginToken = "l".ToBytes()[0];
         public static readonly byte endToken = "e".ToBytes()[0];
 
-        List<IDumpable> _list = new List<IDumpable>();
+        List<IEncodable> _list = new List<IEncodable>();
 
-        public void AddItem(IDumpable item)
+        public void AddItem(IEncodable item)
         => _list.Add(item);
 
-        public byte[] Dump()
+        public byte[] Encode()
         {
             var stream = new MemoryStream();
             stream.WriteByte(beginToken);
             foreach (var l in _list)
             {
-                stream.Write(l.Dump());
+                stream.Write(l.Encode());
             }
             stream.WriteByte(endToken);
             return stream.ToArray();
@@ -183,29 +189,29 @@ namespace BitTorrent.BEncoding
         }
     }
 
-    public class Dictionary : IDumpable
+    public class Dictionary : IEncodable
     {
         public static readonly byte beginToken = "d".ToBytes()[0];
         public static readonly byte endToken = "e".ToBytes()[0];
 
-        List<IDumpable> _keys = new List<IDumpable>();
-        Dictionary<IDumpable, IDumpable> _dir = new Dictionary<IDumpable, IDumpable>();
+        List<IEncodable> _keys = new List<IEncodable>();
+        Dictionary<IEncodable, IEncodable> _dir = new Dictionary<IEncodable, IEncodable>();
 
-        public void AddPair(IDumpable key, IDumpable value)
+        public void AddPair(IEncodable key, IEncodable value)
         {
             if (_keys.Contains(key)) return;
             _keys.Add(key);
             _dir[key] = value;
         }
 
-        public byte[] Dump()
+        public byte[] Encode()
         {
             var stream = new MemoryStream();
             stream.WriteByte(beginToken);
             foreach (var key in _keys)
             {
-                stream.Write(key.Dump());
-                stream.Write(_dir[key].Dump());
+                stream.Write(key.Encode());
+                stream.Write(_dir[key].Encode());
             }
             stream.WriteByte(endToken);
             return stream.ToArray();
@@ -228,27 +234,9 @@ namespace BitTorrent.BEncoding
         }
     }
 
-    public class TorrentFile
+    public static class BEncoding
     {
-        Dictionary _dir;
-
-        public TorrentFile(string path)
-        {
-            var bytes = File.ReadAllBytes(path);
-            var enumerable = bytes.AsEnumerable().GetEnumerator();
-            IDumpable dumpable = Parse(enumerable, true);
-            if (dumpable is Dictionary)
-            {
-                _dir = dumpable as Dictionary;
-            }
-            else
-            {
-                throw new FormatException("The torrent file doesn't "
-                    + "include a dictionary structure");
-            }
-        }
-
-        public IDumpable Parse(IEnumerator<byte> bytes, bool moveNext = true)
+        public static IEncodable Decode(IEnumerator<byte> bytes, bool moveNext = true)
         {
             if (moveNext && !bytes.MoveNext())
                 throw new FormatException("A empty structure");
@@ -258,8 +246,8 @@ namespace BitTorrent.BEncoding
                 var dir = new Dictionary();
                 while(bytes.MoveNext() && bytes.Current != Dictionary.endToken)
                 {
-                    var key = Parse(bytes, false);
-                    var value = Parse(bytes);
+                    var key = Decode(bytes, false);
+                    var value = Decode(bytes);
                     dir.AddPair(key, value);
                 }
                 if (bytes.Current != Dictionary.endToken)
@@ -273,7 +261,7 @@ namespace BitTorrent.BEncoding
                 var list = new List();
                 while(bytes.MoveNext() && bytes.Current != List.endToken)
                 {
-                    var item = Parse(bytes, false);
+                    var item = Decode(bytes, false);
                     list.AddItem(item);
                 }
                 if (bytes.Current != List.endToken)
@@ -284,19 +272,39 @@ namespace BitTorrent.BEncoding
             }
             else if (bytes.Current == Number.beginToken)
             {
-                return Number.Parse(bytes);
+                return Number.Decode(bytes, false);
             }
             else // must be a String
             {
-                return String.Parse(bytes);
+                return String.Decode(bytes, false);
             }
         }
+    }
 
+    public class TorrentFile
+    {
+        Dictionary _dir;
+
+        public TorrentFile(string path)
+        {
+            var bytes = File.ReadAllBytes(path);
+            var enumerable = bytes.AsEnumerable().GetEnumerator();
+            IEncodable encodable = BEncoding.Decode(enumerable, true);
+            if (encodable is Dictionary)
+            {
+                _dir = encodable as Dictionary;
+            }
+            else
+            {
+                throw new FormatException("The torrent file doesn't "
+                    + "include a dictionary structure");
+            }
+        }
         public override string ToString() => _dir?.ToString();
 
         public void Save(string path)
         {
-            var bytes = _dir?.Dump();
+            var bytes = _dir?.Encode();
             File.WriteAllBytes(path, bytes);
         }
     }

@@ -25,7 +25,7 @@ namespace BitTorrentTest
         {
             var torrent = new TorrentFile(@"..\..\..\manti.torrent");
             output.WriteLine(torrent.ToString());
-            torrent.Save(@"..\..\..\manti_dump.torrent");
+           // torrent.Save(@"..\..\..\manti_dump.torrent");
         }
     }
 }
