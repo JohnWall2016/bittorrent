@@ -236,9 +236,9 @@ namespace BitTorrent.BEncoding
 
     public static class BEncoding
     {
-        public static IEncodable Decode(byte[] bytes)
+        public static T Decode<T>(byte[] bytes) where T: class, IEncodable
         {
-            return Decode(bytes.AsEnumerable().GetEnumerator());
+            return Decode(bytes.AsEnumerable().GetEnumerator()) as T;
         }
 
         static IEncodable Decode(IEnumerator<byte> bytes, bool moveNext = true)
@@ -293,18 +293,9 @@ namespace BitTorrent.BEncoding
         public TorrentFile(string path)
         {
             var bytes = File.ReadAllBytes(path);
-            IEncodable encodable = BEncoding.Decode(bytes);
-            if (encodable is Dictionary)
-            {
-                _dir = encodable as Dictionary;
-            }
-            else
-            {
-                throw new FormatException("The torrent file doesn't "
-                    + "include a dictionary structure");
-            }
+            _dir = BEncoding.Decode<Dictionary>(bytes);
         }
-        
+
         public override string ToString() => _dir?.ToString();
 
         public void Save(string path)
