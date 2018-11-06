@@ -23,7 +23,9 @@ namespace BitTorrentTest
         [Fact]
         public void TestTorrentFile()
         {
-            output.WriteLine(new TorrentFile(@"..\..\..\manti.torrent").ToString());
+            var torrent = new TorrentFile(@"..\..\..\manti.torrent");
+            output.WriteLine(torrent.ToString());
+            torrent.Save(@"..\..\..\manti_dump.torrent");
         }
     }
 }

@@ -293,5 +293,11 @@ namespace BitTorrent.BEncoding
         }
 
         public override string ToString() => _dir?.ToString();
+
+        public void Save(string path)
+        {
+            var bytes = _dir?.Dump();
+            File.WriteAllBytes(path, bytes);
+        }
     }
 }
