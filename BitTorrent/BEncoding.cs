@@ -51,31 +51,34 @@ namespace BitTorrent.BEncoding
         byte[] Encode();
     }
 
-    public class String : IEncodable
+    public class Buffer : IEncodable
     {
-        MemoryStream _data;
+        byte[] _data;
 
-        String(MemoryStream data) => _data = data;
+        public byte[] Data => _data;
 
-        public byte[] Encode()
-        => Bytes.Join(_data.Length.ToBytes(), ":".ToBytes(), _data.ToArray());
+        Buffer(byte[] data) => _data = data;
 
-        public string ToString(string encodeName = Bytes.EncodeName, int length = -1)
+        public byte[] Encode() 
+        => Bytes.Join(_data.Length.ToBytes(), ":".ToBytes(), _data);
+
+        public string AsString(string encodeName = Bytes.EncodeName, 
+                               int length = -1)
         {
             if (length == -1)
             {
-                return Encoding.GetEncoding(encodeName)
-                    .GetString(_data.GetBuffer(), 0, (int)_data.Length);
+                return Encoding.GetEncoding(encodeName).GetString(_data);
             }
             else
             {
-                length = length < _data.Length ? length : (int)_data.Length;
+                length = length < _data.Length ? length : _data.Length;
                 return Encoding.GetEncoding(encodeName)
-                    .GetString(_data.GetBuffer(), 0, length);
+                    .GetString(_data, 0, length);
             }
         }
 
-        public static String Decode(IEnumerator<byte> bytes, bool moveNext = true)
+        public static Buffer Decode(IEnumerator<byte> bytes, 
+                                    bool moveNext = true)
         {
             if (moveNext && !bytes.MoveNext())
                 throw new FormatException("A empty String structure");
@@ -104,10 +107,10 @@ namespace BitTorrent.BEncoding
                 data.WriteByte(bytes.Current);
                 len -= 1;
             }
-            return new String(data);
+            return new Buffer(data.ToArray());
         }
 
-        public override string ToString() => $"\"{ToString(length: 150)}\"";
+        public override string ToString() => $"\"{AsString(length: 150)}\"";
     }
 
     public class Number : IEncodable
@@ -115,17 +118,18 @@ namespace BitTorrent.BEncoding
         public static readonly byte beginToken = "i".ToBytes()[0];
         public static readonly byte endToken = "e".ToBytes()[0];
 
-        MemoryStream _data;
+        byte[] _data;
 
-        Number(MemoryStream data) => _data = data;
+        Number(byte[] data) => _data = data;
 
         public byte[] Encode()
-        => Bytes.Join(new byte[]{beginToken}, _data.ToArray(), new byte[]{endToken});
+        => Bytes.Join(new byte[]{beginToken}, _data, new byte[]{endToken});
 
-        public long ToLong()
-        => long.Parse(Encoding.ASCII.GetString(_data.GetBuffer(), 0, (int)_data.Length));
+        public long AsLong()
+        => long.Parse(Encoding.ASCII.GetString(_data));
 
-        public static Number Decode(IEnumerator<byte> bytes, bool moveNext = true)
+        public static Number Decode(IEnumerator<byte> bytes, 
+                                    bool moveNext = true)
         {
             if (moveNext && !bytes.MoveNext())
                 throw new FormatException("A empty structure");
@@ -135,7 +139,8 @@ namespace BitTorrent.BEncoding
                 throw new FormatException("Number beginToken is not found");
             }
             var data = new MemoryStream();
-            while (bytes.MoveNext() && bytes.Current >= 0x30 && bytes.Current <= 0x39) // 0-9
+            while (bytes.MoveNext() 
+                && bytes.Current >= 0x30 && bytes.Current <= 0x39) // 0-9
             {
                 data.WriteByte(bytes.Current);
             }
@@ -147,10 +152,10 @@ namespace BitTorrent.BEncoding
             {
                 throw new FormatException("Number length is shorter than 1");
             }
-            return new Number(data);
+            return new Number(data.ToArray());
         }
 
-        public override string ToString() => $"{ToLong()}";
+        public override string ToString() => $"{AsLong()}";
     }
 
     public class List : IEncodable
@@ -160,8 +165,11 @@ namespace BitTorrent.BEncoding
 
         List<IEncodable> _list = new List<IEncodable>();
 
-        public void AddItem(IEncodable item)
-        => _list.Add(item);
+        public void AddItem(IEncodable item) => _list.Add(item);
+
+        public int Count => _list.Count;
+
+        public IEncodable this[int i] => _list[i];
 
         public byte[] Encode()
         {
@@ -195,13 +203,30 @@ namespace BitTorrent.BEncoding
         public static readonly byte endToken = "e".ToBytes()[0];
 
         List<IEncodable> _keys = new List<IEncodable>();
-        Dictionary<IEncodable, IEncodable> _dir = new Dictionary<IEncodable, IEncodable>();
+        Dictionary<IEncodable, IEncodable> _dir =
+            new Dictionary<IEncodable, IEncodable>();
 
         public void AddPair(IEncodable key, IEncodable value)
         {
             if (_keys.Contains(key)) return;
             _keys.Add(key);
             _dir[key] = value;
+        }
+
+        public IEncodable this[string key]
+        {
+            get 
+            {
+                foreach (var k in _keys)
+                {
+                    if (k is Buffer)
+                    {
+                        if ((k as Buffer).AsString() == key)
+                            return _dir[k];
+                    }
+                }
+                return null;
+            }
         }
 
         public byte[] Encode()
@@ -238,7 +263,12 @@ namespace BitTorrent.BEncoding
     {
         public static T Decode<T>(byte[] bytes) where T: class, IEncodable
         {
-            return Decode(bytes.AsEnumerable().GetEnumerator()) as T;
+            return Decode(bytes) as T;
+        }
+
+        public static IEncodable Decode(byte[] bytes)
+        {
+            return Decode(bytes.AsEnumerable().GetEnumerator());
         }
 
         static IEncodable Decode(IEnumerator<byte> bytes, bool moveNext = true)
@@ -279,9 +309,9 @@ namespace BitTorrent.BEncoding
             {
                 return Number.Decode(bytes, false);
             }
-            else // must be a String
+            else // must be a Buffer
             {
-                return String.Decode(bytes, false);
+                return Buffer.Decode(bytes, false);
             }
         }
     }
@@ -289,6 +319,8 @@ namespace BitTorrent.BEncoding
     public class TorrentFile
     {
         Dictionary _dir;
+
+        public IEncodable this[string key] => _dir[key];
 
         public TorrentFile(string path)
         {

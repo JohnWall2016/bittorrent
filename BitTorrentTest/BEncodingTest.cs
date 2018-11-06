@@ -23,9 +23,13 @@ namespace BitTorrentTest
         [Fact]
         public void TestTorrentFile()
         {
-            var torrent = new TorrentFile(@"..\..\..\manti.torrent");
+            var torrent = new TorrentFile(@"../../../manti.torrent");
             output.WriteLine(torrent.ToString());
            // torrent.Save(@"..\..\..\manti_dump.torrent");
+           output.WriteLine(torrent["announce-list"].ToString());
+           Assert.IsType<List>(torrent["announce-list"]);
+           List list = torrent["announce-list"] as List;
+           output.WriteLine(list[1].ToString());
         }
     }
 }
