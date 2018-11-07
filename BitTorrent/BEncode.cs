@@ -55,13 +55,13 @@ namespace BitTorrent.BEncode
         byte[] Encode();
     }
 
-    public class BString : IEncodable
+    public class ByteArray : IEncodable
     {
         byte[] _data;
 
         public byte[] Data => _data;
 
-        BString(byte[] data) => _data = data;
+        ByteArray(byte[] data) => _data = data;
 
         public byte[] Encode() 
         => Bytes.Join(_data.Length.ToBytes(), ":".ToBytes(), _data);
@@ -84,7 +84,7 @@ namespace BitTorrent.BEncode
             }
         }
 
-        public static BString Decode(IEnumerator<byte> bytes, 
+        public static ByteArray Decode(IEnumerator<byte> bytes, 
                                     bool moveNext = true)
         {
             if (moveNext && !bytes.MoveNext())
@@ -114,7 +114,7 @@ namespace BitTorrent.BEncode
                 data.WriteByte(bytes.Current);
                 len -= 1;
             }
-            return new BString(data.ToArray());
+            return new ByteArray(data.ToArray());
         }
 
         public override string ToString() => $"\"{AsString(length: 150)}\"";
@@ -229,9 +229,9 @@ namespace BitTorrent.BEncode
             {
                 foreach (var k in _keys)
                 {
-                    if (k is BString)
+                    if (k is ByteArray)
                     {
-                        if ((k as BString).AsString() == key)
+                        if ((k as ByteArray).AsString() == key)
                             return _dir[k];
                     }
                 }
@@ -302,16 +302,16 @@ namespace BitTorrent.BEncode
             }
             else if (type == typeof(string))
             {
-                if (encodable is BString)
+                if (encodable is ByteArray)
                 {
-                    return (encodable as BString).AsString();
+                    return (encodable as ByteArray).AsString();
                 }
                 else if (encodable is List)
                 {
                     var list = encodable as List;
-                    if (list.Count == 1 && list[0] is BString)
+                    if (list.Count == 1 && list[0] is ByteArray)
                     {
-                        return (list[0] as BString).AsString();
+                        return (list[0] as ByteArray).AsString();
                     }
                 }
             }
@@ -328,9 +328,9 @@ namespace BitTorrent.BEncode
                     }
                     return array;
                 }
-                else if (type.GetElementType() == typeof(byte) && encodable is BString)
+                else if (type.GetElementType() == typeof(byte) && encodable is ByteArray)
                 {
-                    return (encodable as BString).Data;
+                    return (encodable as ByteArray).Data;
                 }
             }
             else
@@ -404,7 +404,7 @@ namespace BitTorrent.BEncode
             }
             else // must be a binary string
             {
-                return BString.Decode(bytes, false);
+                return ByteArray.Decode(bytes, false);
             }
         }
 

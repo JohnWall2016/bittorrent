@@ -35,7 +35,7 @@ namespace BitTorrentTest
         [Fact]
         public void TestDecode()
         {
-            var s = Decoder.Decode<string>(BString.Encode("hello"));
+            var s = Decoder.Decode<string>(ByteArray.Encode("hello"));
             output.WriteLine(s);
             var i = Decoder.Decode<int>(Number.Encode(111));
             output.WriteLine($"{i}");
