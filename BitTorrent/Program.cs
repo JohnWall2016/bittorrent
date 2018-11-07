@@ -1,5 +1,6 @@
 ﻿using System;
-using BitTorrent.BEncoding;
+using BitTorrent.BEncode;
+using BitTorrent.Torrent;
 
 namespace BitTorrent
 {
@@ -8,6 +9,8 @@ namespace BitTorrent
         static void Main(string[] args)
         {
             //Console.WriteLine(new TorrentFile(@"manti.torrent").ToString());
+            var torrent = new File(@"manti.torrent");
+            Console.WriteLine(torrent.ToString());
         }
     }
 }

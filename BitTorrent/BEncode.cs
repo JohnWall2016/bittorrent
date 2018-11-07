@@ -1,10 +1,11 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using System.IO;
 using System.Linq;
 
-namespace BitTorrent.BEncoding
+namespace BitTorrent.BEncode
 {
     public static class Bytes
     {
@@ -23,14 +24,17 @@ namespace BitTorrent.BEncoding
             string encodeName = EncodeName)
         => Encoding.GetEncoding(encodeName).GetString(bytes, index, count);
 
-        public static string Dump(this byte[] bytes)
+        public static string Dump(this byte[] bytes, int length = -1)
         {
             var builder = new StringBuilder();
-            for (var i = 0; i < bytes.Length; i++)
+            length = (length < 0) ? bytes.Length 
+                : (length > bytes.Length ? bytes.Length : length);
+            for (var i = 0; i < length; i++)
             {
                 if (i > 0) builder.Append(" ");
                 builder.Append(bytes[i].ToString("X"));
             }
+            if (length < bytes.Length) builder.Append(" ...");
             return builder.ToString();
         }
 
@@ -51,16 +55,19 @@ namespace BitTorrent.BEncoding
         byte[] Encode();
     }
 
-    public class Buffer : IEncodable
+    public class BString : IEncodable
     {
         byte[] _data;
 
         public byte[] Data => _data;
 
-        Buffer(byte[] data) => _data = data;
+        BString(byte[] data) => _data = data;
 
         public byte[] Encode() 
         => Bytes.Join(_data.Length.ToBytes(), ":".ToBytes(), _data);
+
+        public static byte[] Encode(string s)
+        => Bytes.Join(s.Length.ToBytes(), ":".ToBytes(), s.ToBytes());
 
         public string AsString(string encodeName = Bytes.EncodeName, 
                                int length = -1)
@@ -77,7 +84,7 @@ namespace BitTorrent.BEncoding
             }
         }
 
-        public static Buffer Decode(IEnumerator<byte> bytes, 
+        public static BString Decode(IEnumerator<byte> bytes, 
                                     bool moveNext = true)
         {
             if (moveNext && !bytes.MoveNext())
@@ -107,7 +114,7 @@ namespace BitTorrent.BEncoding
                 data.WriteByte(bytes.Current);
                 len -= 1;
             }
-            return new Buffer(data.ToArray());
+            return new BString(data.ToArray());
         }
 
         public override string ToString() => $"\"{AsString(length: 150)}\"";
@@ -124,6 +131,9 @@ namespace BitTorrent.BEncoding
 
         public byte[] Encode()
         => Bytes.Join(new byte[]{beginToken}, _data, new byte[]{endToken});
+
+        public static byte[] Encode(long l)
+        => Bytes.Join(new byte[]{beginToken}, l.ToBytes(), new byte[]{endToken});
 
         public long AsLong()
         => long.Parse(Encoding.ASCII.GetString(_data));
@@ -219,9 +229,9 @@ namespace BitTorrent.BEncoding
             {
                 foreach (var k in _keys)
                 {
-                    if (k is Buffer)
+                    if (k is BString)
                     {
-                        if ((k as Buffer).AsString() == key)
+                        if ((k as BString).AsString() == key)
                             return _dir[k];
                     }
                 }
@@ -259,19 +269,102 @@ namespace BitTorrent.BEncoding
         }
     }
 
-    public static class BEncoding
+    public sealed class BEncodeAttribute : Attribute
     {
-        public static T Decode<T>(byte[] bytes) where T: class, IEncodable
+        public BEncodeAttribute(string name)
         {
-            return Decode(bytes) as T;
+            this.Name = name;
         }
 
-        public static IEncodable Decode(byte[] bytes)
+        public string Name { get; }
+    }
+
+    public static class Decoder
+    {
+        static object Decode(Type type, IEncodable encodable)
         {
-            return Decode(bytes.AsEnumerable().GetEnumerator());
+            if (type == typeof(int)
+                || type == typeof(long)
+                || type == typeof(Nullable<int>) 
+                || type == typeof(Nullable<long>))
+            {
+                if (encodable is Number)
+                {
+                    if (type == typeof(int))
+                    {
+                        return (int)(encodable as Number).AsLong();
+                    }
+                    else
+                    {
+                        return (encodable as Number).AsLong();
+                    }
+                }
+            }
+            else if (type == typeof(string))
+            {
+                if (encodable is BString)
+                {
+                    return (encodable as BString).AsString();
+                }
+                else if (encodable is List)
+                {
+                    var list = encodable as List;
+                    if (list.Count == 1 && list[0] is BString)
+                    {
+                        return (list[0] as BString).AsString();
+                    }
+                }
+            }
+            else if (type.IsArray)
+            {
+                if (encodable is List)
+                {
+                    var list = encodable as List;
+                    var elemType = type.GetElementType();
+                    var array = Array.CreateInstance(elemType, list.Count);
+                    for (var i = 0; i < list.Count; i++)
+                    {
+                        array.SetValue(Decode(elemType, list[i]), i);
+                    }
+                    return array;
+                }
+                else if (type.GetElementType() == typeof(byte) && encodable is BString)
+                {
+                    return (encodable as BString).Data;
+                }
+            }
+            else
+            {
+                if (encodable is Dictionary)
+                {
+                    var dir = encodable as Dictionary;
+                    var obj = Activator.CreateInstance(type);
+                    var fields = type.GetFields();
+                    foreach (var f in fields)
+                    {
+                        var name = f.Name;
+                        var attr = (BEncodeAttribute)Attribute
+                            .GetCustomAttribute(f, typeof(BEncodeAttribute));
+                        if (attr != null) name = attr.Name;
+
+                        var t = f.FieldType;
+                        var v = dir[name];
+
+                        f.SetValue(obj, Decode(t, v));
+                    }
+                    return obj;
+                }
+            }
+            return null;
         }
 
-        static IEncodable Decode(IEnumerator<byte> bytes, bool moveNext = true)
+        public static T Decode<T>(byte[] bytes)
+        => (T)Decode(typeof(T), Parse(bytes));
+
+        public static T Decode<T>(IEncodable encodable)
+        => (T)Decode(typeof(T), encodable);
+
+        static IEncodable Parse(IEnumerator<byte> bytes, bool moveNext = true)
         {
             if (moveNext && !bytes.MoveNext())
                 throw new FormatException("A empty structure");
@@ -281,8 +374,8 @@ namespace BitTorrent.BEncoding
                 var dir = new Dictionary();
                 while(bytes.MoveNext() && bytes.Current != Dictionary.endToken)
                 {
-                    var key = Decode(bytes, false);
-                    var value = Decode(bytes);
+                    var key = Parse(bytes, false);
+                    var value = Parse(bytes);
                     dir.AddPair(key, value);
                 }
                 if (bytes.Current != Dictionary.endToken)
@@ -296,7 +389,7 @@ namespace BitTorrent.BEncoding
                 var list = new List();
                 while(bytes.MoveNext() && bytes.Current != List.endToken)
                 {
-                    var item = Decode(bytes, false);
+                    var item = Parse(bytes, false);
                     list.AddItem(item);
                 }
                 if (bytes.Current != List.endToken)
@@ -309,31 +402,13 @@ namespace BitTorrent.BEncoding
             {
                 return Number.Decode(bytes, false);
             }
-            else // must be a Buffer
+            else // must be a binary string
             {
-                return Buffer.Decode(bytes, false);
+                return BString.Decode(bytes, false);
             }
         }
-    }
 
-    public class TorrentFile
-    {
-        Dictionary _dir;
-
-        public IEncodable this[string key] => _dir[key];
-
-        public TorrentFile(string path)
-        {
-            var bytes = File.ReadAllBytes(path);
-            _dir = BEncoding.Decode<Dictionary>(bytes);
-        }
-
-        public override string ToString() => _dir?.ToString();
-
-        public void Save(string path)
-        {
-            var bytes = _dir?.Encode();
-            File.WriteAllBytes(path, bytes);
-        }
+        public static IEncodable Parse(byte[] bytes)
+        => Parse(bytes.AsEnumerable().GetEnumerator());
     }
 }
