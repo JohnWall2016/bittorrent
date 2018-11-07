@@ -88,7 +88,7 @@ namespace BitTorrent.BEncode
                                     bool moveNext = true)
         {
             if (moveNext && !bytes.MoveNext())
-                throw new FormatException("A empty String structure");
+                throw new FormatException("A empty ByteArray structure");
 
             var slen = new MemoryStream();
             while (bytes.Current >= 0x30 && bytes.Current <= 0x39) // 0-9
@@ -96,12 +96,12 @@ namespace BitTorrent.BEncode
                 slen.WriteByte(bytes.Current);
                 if (!bytes.MoveNext())
                 {
-                    throw new FormatException("String length is invalid");
+                    throw new FormatException("ByteArray length is invalid");
                 }
             }
             if (bytes.Current != 0x3a) // :
             {
-                throw new FormatException("String mark ':' is not found");
+                throw new FormatException("ByteArray data mark ':' is not found");
             }
             int len = int.Parse(Bytes.ToString(slen.GetBuffer(), 0, (int)slen.Length));
             var data = new MemoryStream(len);
@@ -109,7 +109,7 @@ namespace BitTorrent.BEncode
             {
                 if (!bytes.MoveNext())
                 {    
-                    throw new FormatException($"String data is shorter than length: {len}");
+                    throw new FormatException($"ByteArray data is shorter than length: {len}");
                 }
                 data.WriteByte(bytes.Current);
                 len -= 1;
@@ -142,7 +142,7 @@ namespace BitTorrent.BEncode
                                     bool moveNext = true)
         {
             if (moveNext && !bytes.MoveNext())
-                throw new FormatException("A empty structure");
+                throw new FormatException("A empty Number structure");
 
             if (bytes.Current != beginToken)
             {    
@@ -367,7 +367,7 @@ namespace BitTorrent.BEncode
         static IEncodable Parse(IEnumerator<byte> bytes, bool moveNext = true)
         {
             if (moveNext && !bytes.MoveNext())
-                throw new FormatException("A empty structure");
+                throw new FormatException("A empty IEncodable structure");
 
             if (bytes.Current == Dictionary.beginToken)
             {
@@ -402,7 +402,7 @@ namespace BitTorrent.BEncode
             {
                 return Number.Decode(bytes, false);
             }
-            else // must be a binary string
+            else // must be a byte array
             {
                 return ByteArray.Decode(bytes, false);
             }
