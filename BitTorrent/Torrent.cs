@@ -5,6 +5,7 @@ using System.Linq;
 using IOFile = System.IO.File;
 
 using BitTorrent.BEncode;
+using BitTorrent.Utils;
 
 namespace BitTorrent.Torrent
 {
@@ -30,6 +31,20 @@ namespace BitTorrent.Torrent
         }
     }
 
+    public class FileInfo
+    {
+        [BEncode("length")]
+        public long Length;
+
+        [BEncode("path")]
+        public string Path;
+
+        public override string ToString()
+        {
+            return $"{{\"Path\":{Path}, \"Length\":{Length}}}";
+        }
+    }
+
     public class Info
     {
         [BEncode("length")]
@@ -39,13 +54,16 @@ namespace BitTorrent.Torrent
         public string Name;
 
         [BEncode("piece length")]
-        public long? PieceLength;
+        public long PieceLength;
 
         [BEncode("pieces")]
         public byte[] Pieces;
 
         [BEncode("private")]
         public int? Private;
+
+        [BEncode("files")]
+        public FileInfo[] Files;
 
         public override string ToString()
         {
@@ -54,7 +72,8 @@ namespace BitTorrent.Torrent
                 $"\"Name\":{Name}, " +
                 $"\"PieceLength\":{PieceLength}, " +
                 $"\"Pieces\":[{Bytes.Dump(Pieces, 50)}], " +
-                $"\"Private\":{Private}" +
+                $"\"Private\":{Private}, " +
+                $"\"Files\":[{Files?.Join()}]" +
                 "}";
         }
     }
@@ -86,7 +105,7 @@ namespace BitTorrent.Torrent
         {
             return "{" +
                 $"\"Announce\":{Announce}, " +
-                $"\"AnnounceList\":[{AnnounceList?.Aggregate((s, t) => $"{s}, {t}")}], " +
+                $"\"AnnounceList\":[{AnnounceList?.Join()}], " +
                 $"\"Coumment\":{Comment}, " +
                 $"\"CreatedBy\":{CreatedBy}, " +
                 $"\"CreatedDate\":{CreatedDate}, " +

@@ -4,6 +4,7 @@ using Xunit.Abstractions;
 
 using BitTorrent.BEncode;
 using BitTorrent.Torrent;
+using BitTorrent.Utils;
 
 namespace BitTorrentTest
 {
@@ -25,11 +26,16 @@ namespace BitTorrentTest
         [Fact]
         public void TestTorrentFile()
         {
-            var torrent = new File(@"../../../manti.torrent");
+            var torrent = new File(@"../../../single_file.torrent");
             output.WriteLine(torrent.ToString());
-            // torrent.Save(@"..\..\..\manti_dump.torrent");
+            // torrent.Save(@"../../../single_file_dump.torrent");
             output.WriteLine(torrent.MetaInfo.AnnounceList[0]);
             output.WriteLine(torrent.MetaInfo.Info.Name);
+            output.WriteLine(torrent.MetaInfo.Info.PieceLength.ToString());
+            output.WriteLine(torrent.MetaInfo.Info.Pieces.Length.ToString());
+
+            torrent = new File(@"../../../multi_files.torrent");
+            output.WriteLine(torrent.ToString());
         }
 
         [Fact]
