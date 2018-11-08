@@ -369,4 +369,48 @@ namespace BitTorrent.BEncode
         public static IEncodable Parse(byte[] bytes)
         => Parse(bytes.AsEnumerable().GetEnumerator());
     }
+
+    public static class Encoder
+    {
+        static void Encode(object obj, MemoryStream stream)
+        {
+            if (obj is int || obj is long)
+            {
+                stream.Write(Number.Encode((long)obj));
+            }
+            else if (obj is string)
+            {
+                stream.Write(ByteArray.Encode((string)obj));
+            }
+            else if (obj is byte[])
+            {
+                stream.Write((byte[])obj);
+            }
+            else if (obj.GetType().IsArray)
+            {
+                var array = obj as Array;
+                stream.WriteByte(List.beginToken);
+                foreach (var a in array)
+                {
+                    Encode(a, stream);
+                }
+                stream.WriteByte(List.endToken);
+            }
+            else
+            {
+                var fields = obj.GetType().GetFields();
+                stream.WriteByte(Dictionary.beginToken);
+                foreach (var f in fields)
+                {
+                    var name = f.Name;
+                    var attr = (BEncodeAttribute)Attribute
+                        .GetCustomAttribute(f, typeof(BEncodeAttribute));
+                    if (attr != null) name = attr.Name;
+                    Encode(name, stream);
+                    Encode(f.GetValue(obj), stream);
+                }
+                stream.WriteByte(Dictionary.endToken);
+            }
+        }
+    }
 }
