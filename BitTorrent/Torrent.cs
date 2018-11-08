@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
@@ -100,6 +101,29 @@ namespace BitTorrent.Torrent
 
         [BEncode("info")]
         public Info Info;
+
+        public long PieceLength => Info.PieceLength;
+
+        public List<FileInfo> Files
+        {
+            get {
+                if (Info.Length != null)
+                {
+                    return new List<FileInfo>() 
+                    {
+                        new FileInfo() 
+                        { 
+                            Path = Info.Name, 
+                            Length = Info.Length.Value
+                        }
+                    };
+                }
+                else
+                {
+                    return Info.Files.ToList();
+                }
+            }
+        }
 
         public override string ToString()
         {
