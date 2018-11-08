@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
+using BitTorrent.BEncode;
 using TorrentFile = BitTorrent.Torrent.File;
 
 namespace BitTorrent.Network
@@ -38,41 +39,49 @@ namespace BitTorrent.Network
 
     public class PiecesState
     {
-        enum State { NoStart = 0, Downloading, Completed, Corrupted }
+        const byte NoStart = 0;
+        const byte Downloading = 1;
+        const byte Corrupted = 2;
+        const byte Completed = 3;
 
-        State[] _pieces;
-        State[][] _blockes;
+        public byte[] Pieces;
+        public byte[][] Blockes;
 
         public PiecesState(int piecesCount, long pieceSize, int blockSize)
         {
-            _pieces = new State[piecesCount];
-            _blockes = new State[piecesCount][];
+            Pieces = new byte[piecesCount];
+            Blockes = new byte[piecesCount][];
             for (var i = 0; i < piecesCount; i++)
             {
                 var blockCount =  (int)(pieceSize / blockSize) 
                                 + (pieceSize % blockSize > 0 ? 1: 0);
-                _blockes[i] = new State[blockCount];
+                Blockes[i] = new byte[blockCount];
             }
         }
 
         public void Complete(int piece, int block, Func<int, bool> verifyPiece = null)
         {
-            _blockes[piece][block] = State.Completed;
-            if (_blockes[piece].All(x => x == State.Completed))
+            Blockes[piece][block] = Completed;
+            if (Blockes[piece].All(x => x == Completed))
             {
                 if (verifyPiece != null && !verifyPiece(piece))
                 {
-                    for (var i = 0; i < _blockes[piece].Length; i++)
+                    for (var i = 0; i < Blockes[piece].Length; i++)
                     {
-                        _blockes[piece][i] = State.Corrupted;
+                        Blockes[piece][i] = Corrupted;
                     }
-                    _pieces[piece] = State.Corrupted;
+                    Pieces[piece] = Corrupted;
                 }
                 else
                 {
-                    _pieces[piece] = State.Completed;
+                    Pieces[piece] = Completed;
                 }
             }
+        }
+
+        public void Save(string path)
+        {
+            File.WriteAllBytes(path, Encoder.Encode(this));
         }
     }
 

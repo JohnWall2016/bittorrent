@@ -28,6 +28,9 @@ namespace BitTorrent.BEncode
         public static byte[] Encode(string s)
         => Bytes.Join(s.Length.ToBytes(), ":".ToBytes(), s.ToBytes());
 
+        public static byte[] Encode(byte[] bytes)
+        => Bytes.Join(bytes.Length.ToBytes(), ":".ToBytes(), bytes);
+
         public string AsString(string encodeName = Bytes.EncodeName, 
                                int length = -1)
         {
@@ -384,7 +387,7 @@ namespace BitTorrent.BEncode
             }
             else if (obj is byte[])
             {
-                stream.Write((byte[])obj);
+                stream.Write(ByteArray.Encode((byte[])obj));
             }
             else if (obj.GetType().IsArray)
             {
@@ -411,6 +414,13 @@ namespace BitTorrent.BEncode
                 }
                 stream.WriteByte(Dictionary.endToken);
             }
+        }
+
+        public static byte[] Encode(object obj)
+        {
+            var stream = new MemoryStream();
+            Encode(obj, stream);
+            return stream.ToArray();
         }
     }
 }

@@ -3,6 +3,7 @@ using Xunit;
 using Xunit.Abstractions;
 
 using BitTorrent.BEncode;
+using BitTorrent.Network;
 using BitTorrent.Torrent;
 using BitTorrent.Utils;
 
@@ -49,6 +50,12 @@ namespace BitTorrentTest
             var metaInfo = Decoder.Decode<MetaInfo>(
                 System.IO.File.ReadAllBytes(@"../../../manti.torrent"));
             output.WriteLine(metaInfo.ToString());
+        }
+
+        [Fact]
+        public void TestPiecesState()
+        {
+            new PiecesState(100, 10, 2).Save(@"../../../pieces.txt");
         }
     }
 }
