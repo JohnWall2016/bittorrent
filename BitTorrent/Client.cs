@@ -80,9 +80,10 @@ namespace BitTorrent.Network
         }
 
         public void Save(string path)
-        {
-            File.WriteAllBytes(path, Encoder.Encode(this));
-        }
+        => File.WriteAllBytes(path, Encoder.Encode(this));
+
+        public static PiecesState Load(string path)
+        => Decoder.Decode<PiecesState>(File.ReadAllBytes(path));
     }
 
     public class Client
